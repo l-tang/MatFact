@@ -1,2 +1,2 @@
 # MatFact
-Package including the implementation of matrix factorization for recommender system
+Module including the implementation of matrix factorization for recommender system
