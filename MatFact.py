@@ -8,18 +8,23 @@ import numpy as np
 
 class FunkSVD:
     def __init__(self, mat, k, penalty='RIDGE', penalty_weight=0.5,
-                 learning_rate=0.01, learning_rate_decay=0.75):
+                 learning_rate=0.01, learning_rate_decay=0.75, min_learning_rate=None):
         self.mat = mat
         self.k = k
         self.penalty = penalty
         self.penalty_weight = penalty_weight
         self.learning_rate = learning_rate
         self.learning_rate_decay = learning_rate_decay
+        self.min_learning_rate = min_learning_rate
         self.mat_p = np.random.rand(len(self.mat), self.k)
         self.mat_q = np.random.rand(self.k, len(self.mat[0]))
 
     def decom(self, samp_rate=1, epochs=20):
         self.learning_rate /= self.learning_rate_decay
+        if self.min_learning_rate:
+            if self.learning_rate < self.min_learning_rate:
+                self.learning_rate = self.min_learning_rate
+        
         for epoch in range(epochs):
             loss = 0
             self.learning_rate *= self.learning_rate_decay
@@ -39,8 +44,8 @@ class FunkSVD:
                                     (self.mat[row, col] - y_hat) * self.mat_p[row, :] -
                                     self.penalty_weight * self.mat_q[:, col])
 
-                            loss += (self.mat[row, col] - y_hat) ** 2 + self.penalty_weight * (
-                                    np.linalg.norm(self.mat_p[row, :]) + np.linalg.norm(self.mat_q.T[col, :]))
+                            loss += ((self.mat[row, col] - y_hat) ** 2 + self.penalty_weight * (
+                                    np.linalg.norm(self.mat_p[row, :]) + np.linalg.norm(self.mat_q.T[col, :]))) / self.k
                         else:
                             raise ValueError
 
