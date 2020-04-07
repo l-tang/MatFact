@@ -3,13 +3,31 @@
     Date: 28/Mar/2019
     Author: Li Tang
 """
+import sys
 import numpy as np
 import random
 
 
 class FunkSVD:
-    def __init__(self, mat, k, penalty='ridge', penalty_weight=0.5, learning_rate=0.01, learning_rate_decay=0.75,
-                 min_learning_rate=None, early_stopping=10):
+    def __init__(self, mat, k: int, penalty='ridge', penalty_weight=0.5, learning_rate=0.05, learning_rate_decay=0.85,
+                 min_learning_rate=None):
+        """
+
+        :param mat:
+        :param k:
+        :param penalty:
+        :param penalty_weight:
+        :param learning_rate:
+        :param learning_rate_decay:
+        :param min_learning_rate:
+        """
+        assert mat is not None
+        assert k > 0 and isinstance(k, int)
+        assert penalty in ['ridge', 'lasso']
+        assert penalty_weight > 0
+        assert learning_rate > 0
+        assert learning_rate_decay > 0
+
         self.mat = mat
         self.k = k
         self.penalty = penalty
@@ -20,12 +38,23 @@ class FunkSVD:
         self.mat_p = np.random.rand(len(self.mat), self.k)
         self.mat_q = np.random.rand(self.k, len(self.mat[0]))
 
-    def decom(self, samp_rate=1.0, epochs=20):
-        self.learning_rate /= self.learning_rate_decay
+    def decom(self, dropout=0.0, epochs=20, early_stopping=10):
+        """
+
+        :param dropout:
+        :param epochs:
+        :param early_stopping:
+        :return:
+        """
+        assert 0 <= dropout < 1.0
+        assert isinstance(early_stopping, int)
+
+        self.learning_rate /= self.learning_rate_decay / (1 - dropout)
         if self.min_learning_rate:
             if self.learning_rate < self.min_learning_rate:
                 self.learning_rate = self.min_learning_rate
 
+        loss_history = [sys.maxsize]
         for epoch in range(epochs):
             loss = 0
             trained_samples = 0
@@ -35,15 +64,15 @@ class FunkSVD:
                 for col in range(len(self.mat[row])):
                     if np.isnan(self.mat[row, col]):
                         continue
-                    if random.random() <= samp_rate:
+                    if random.random() <= 1 - dropout:
                         y_hat = np.matmul(self.mat_p[row, :], self.mat_q.T[col, :])
 
                         if self.penalty == 'ridge':
-                            self.mat_p[row, :] = self.mat_p[row, :] + self.learning_rate * (
+                            self.mat_p[row, :] += self.learning_rate * (
                                     (self.mat[row, col] - y_hat) * self.mat_q[:, col] -
                                     self.penalty_weight * self.mat_p[row, :])
 
-                            self.mat_q[:, col] = self.mat_q[:, col] + self.learning_rate * (
+                            self.mat_q[:, col] += self.learning_rate * (
                                     (self.mat[row, col] - y_hat) * self.mat_p[row, :] -
                                     self.penalty_weight * self.mat_q[:, col])
 
@@ -57,10 +86,29 @@ class FunkSVD:
                     else:
                         skipped_samples += 1
 
-            print('epoch:', epoch + 1, '==> loss:', loss)
-            print('trained %d samples and skipped %d samples' % (trained_samples, skipped_samples))
+            print('epoch: {} ==> loss: {}'.format(epoch + 1, loss))
+            print('trained {} samples and skipped {} samples'.format(trained_samples, skipped_samples))
+
+            if early_stopping > 0:
+                if loss < loss_history[0]:
+                    loss_history = [loss]
+                else:
+                    loss_history.append(loss)
+
+                if len(loss_history) >= early_stopping:
+                    print(
+                        'Early stopping! The best performance is at No.{} epoch and the loss have not been decreased from then on as {}:'.format(
+                            epoch - early_stopping + 2, loss_history))
+                    break
+            else:
+                continue
 
     def reco(self, topk=20):
+        """
+
+        :param topk:
+        :return:
+        """
         result_dict = {}
         for row in range(len(self.mat)):
             topk_reco = []
