@@ -4,11 +4,12 @@
     Author: Li Tang
 """
 import numpy as np
+import random
 
 
 class FunkSVD:
-    def __init__(self, mat, k, penalty='RIDGE', penalty_weight=0.5,
-                 learning_rate=0.01, learning_rate_decay=0.75, min_learning_rate=None):
+    def __init__(self, mat, k, penalty='ridge', penalty_weight=0.5, learning_rate=0.01, learning_rate_decay=0.75,
+                 min_learning_rate=None, early_stopping=10):
         self.mat = mat
         self.k = k
         self.penalty = penalty
@@ -19,23 +20,25 @@ class FunkSVD:
         self.mat_p = np.random.rand(len(self.mat), self.k)
         self.mat_q = np.random.rand(self.k, len(self.mat[0]))
 
-    def decom(self, samp_rate=1, epochs=20):
+    def decom(self, samp_rate=1.0, epochs=20):
         self.learning_rate /= self.learning_rate_decay
         if self.min_learning_rate:
             if self.learning_rate < self.min_learning_rate:
                 self.learning_rate = self.min_learning_rate
-        
+
         for epoch in range(epochs):
             loss = 0
+            trained_samples = 0
+            skipped_samples = 0
             self.learning_rate *= self.learning_rate_decay
             for row in range(len(self.mat)):
                 for col in range(len(self.mat[row])):
                     if np.isnan(self.mat[row, col]):
                         continue
-                    if np.random.choice(samp_rate) == 0:
+                    if random.random() <= samp_rate:
                         y_hat = np.matmul(self.mat_p[row, :], self.mat_q.T[col, :])
 
-                        if self.penalty == 'RIDGE':
+                        if self.penalty == 'ridge':
                             self.mat_p[row, :] = self.mat_p[row, :] + self.learning_rate * (
                                     (self.mat[row, col] - y_hat) * self.mat_q[:, col] -
                                     self.penalty_weight * self.mat_p[row, :])
@@ -46,10 +49,16 @@ class FunkSVD:
 
                             loss += ((self.mat[row, col] - y_hat) ** 2 + self.penalty_weight * (
                                     np.linalg.norm(self.mat_p[row, :]) + np.linalg.norm(self.mat_q.T[col, :]))) / self.k
+                        elif self.penalty == 'lasso':
+                            pass
                         else:
                             raise ValueError
+                        trained_samples += 1
+                    else:
+                        skipped_samples += 1
 
             print('epoch:', epoch + 1, '==> loss:', loss)
+            print('trained %d samples and skipped %d samples' % (trained_samples, skipped_samples))
 
     def reco(self, topk=20):
         result_dict = {}
