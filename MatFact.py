@@ -62,7 +62,7 @@ class FunkSVD:
             self.learning_rate *= self.learning_rate_decay
             for row in range(len(self.mat)):
                 for col in range(len(self.mat[row])):
-                    if np.isnan(self.mat[row, col]):
+                    if not self.mat[row, col] or np.isnan(self.mat[row, col]):
                         continue
                     if random.random() <= 1 - dropout:
                         y_hat = np.matmul(self.mat_p[row, :], self.mat_q.T[col, :])
@@ -79,7 +79,13 @@ class FunkSVD:
                             loss += ((self.mat[row, col] - y_hat) ** 2 + self.penalty_weight * (
                                     np.linalg.norm(self.mat_p[row, :]) + np.linalg.norm(self.mat_q.T[col, :]))) / self.k
                         elif self.penalty == 'lasso':
-                            pass
+                            self.mat_p[row, :] += self.learning_rate * (
+                                        (self.mat[row, col] - y_hat) * self.mat_q[:, col] - self.penalty_weight)
+                            self.mat_q[:, col] += self.learning_rate * (
+                                        (self.mat[row, col] - y_hat) * self.mat_p[row, :] - self.penalty_weight)
+                            loss += ((self.mat[row, col] - y_hat) ** 2 + self.penalty_weight * (
+                                        np.linalg.norm(self.mat_p[row, :], ord=1) + np.linalg.norm(self.mat_q.T[col, :],
+                                                                                                   ord=1))) / self.k
                         else:
                             raise ValueError
                         trained_samples += 1
@@ -127,3 +133,14 @@ class FunkSVD:
                         continue
             result_dict[row] = iter(topk_reco)
         return result_dict
+
+
+mat = np.array(
+    [[0, 1, 2, 1, 2], [0, 2, 2, np.nan, np.nan], [np.nan, 0, 1, np.nan, np.nan], [np.nan, None, None, 1, 2],
+     [1, 0, 2, None, None]])
+funksvd = FunkSVD(mat=mat, k=3)
+funksvd1 = FunkSVD(mat=mat, k=3, penalty='lasso')
+funksvd.decom(epochs=100, early_stopping=-1)
+print(funksvd.mat_p, funksvd.mat_q)
+funksvd1.decom(epochs=100, early_stopping=-1)
+print(funksvd1.mat_p, funksvd1.mat_q)
