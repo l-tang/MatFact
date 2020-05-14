@@ -1,5 +1,4 @@
-"""Product-based Neural Networks
-https://arxiv.org/pdf/1611.00144.pdf
+"""Module including some useful implementations apropos neural networks.
 """
 __author__ = ['Li Tang']
 __copyright__ = 'Li Tang'
@@ -12,9 +11,13 @@ __status__ = 'Production'
 
 import tensorflow as tf
 from tensorflow.keras.layers import BatchNormalization, Dense, Dropout, Flatten
+from sklearn.preprocessing import OneHotEncoder
 
 
 class PNN(tf.keras.Model):
+    """Product-based Neural Networks
+    https://arxiv.org/pdf/1611.00144.pdf
+    """
     def __init__(self, features_dim: int, fields_dim: int, hidden_layer_sizes: list, dropout_params: list, product_layer_dim=10, lasso=0.01, ridge=1e-5, embedding_dim=10, product_type='ipnn'):
         super(PNN, self).__init__()
         self.features_dim = features_dim    # number of different
@@ -43,7 +46,7 @@ class PNN(tf.keras.Model):
         self.__create_model()
 
     def __init_embedding_layer(self):
-        self.embedded_features = tf.keras.layers.Embedding(self.features_dim, self.embedding_dim, embeddings_initializer='uniform')
+        self.embedding_layer = tf.keras.layers.Embedding(self.features_dim, self.embedding_dim, embeddings_initializer='uniform')
 
     def __init_product_layer(self):
         # linear signals l_z
@@ -51,13 +54,20 @@ class PNN(tf.keras.Model):
         # quadratic signals l_p
         self.__init_quadratic_signals()
 
+    def loss_function(self, labels, logits, name=None):
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=labels, logits=logits, name=name
+        )
+        return loss
+
     def __init_linear_signals(self, initializer=tf.initializers.GlorotUniform()):
         self.linear_signals = tf.Variable(initializer(shape=(self.product_layer_dim, self.fields_dim, self.embedding_dim)))
 
     def __init_quadratic_signals(self, initializer=tf.initializers.GlorotUniform()):
         assert self.product_type in ['ipnn', 'opnn'], "'product_type' should be either 'ipnn' or 'opnn'."
         if self.product_type == 'ipnn':
-            self.theta = tf.Variable(initializer(shape=(self.product_layer_dim, self.fields_dim)))
+            # matrix decomposition based on the assumption: W_p^n = \theta ^n * {\theta^n}^T
+            self.theta_ = tf.Variable(initializer(shape=(self.product_layer_dim, self.fields_dim)))
         elif self.product_type == 'opnn':
             pass
         else:
@@ -66,60 +76,10 @@ class PNN(tf.keras.Model):
     def __create_model(self):
 
         model = tf.keras.Sequential()
+        # feat_embedding_0 = self.embedding_layer(feat_index)  # Batch * N * M
+        # feat_embedding = tf.einsum('bnm,bn->bnm', feat_embedding_0, feat_value)
+        # tf.einsum('bnm,dnm->bd', feat_embedding, self.linear_signals)
 
-        # the product layer
-        # # linear signals l_z
-        # # quadratic signals l_p
-        # the first hidden layer
-
-        # 使用双层卷积结构的方式提取图像特征，第一层双层卷积使用使用3*3的卷积核，输出维度是64，全局使用he_normal进行kernel_initializer，激活函数使用relu
-        model.add(
-            tf.keras.layers.Conv2D(64, 3, kernel_initializer='he_normal', strides=1, activation='relu', padding='same',
-                                   input_shape=(32, 32, 3), name="conv1"))
-        model.add(
-            tf.keras.layers.Conv2D(64, 3, kernel_initializer='he_normal', strides=1, activation='relu', padding='same',
-                                   name="conv2"))
-        # 使用tf.keras.layers.MaxPool2D搭建神经网络的池化层，使用最大值池化策略，将2*2局域的像素使用一个最大值代替，步幅为2，padding使用valid策略
-        model.add(tf.keras.layers.MaxPool2D((2, 2), strides=2, padding='valid', name="pool1"))
-        # 叠加一层Dropout层，提高泛化性，降低神经网络的复杂度
-        model.add(Dropout(rate=self.rate, name="d1"))
-        # 使用batchnormalization对上一层的输出数据进行归一化
-        model.add(BatchNormalization())
-        # 使用双层卷积结构的方式提取图像特征，第二层双层卷积使用使用3*3的卷积核，输出维度是128，全局使用he_normal进行kernel_initializer,激活函数使用relu
-        model.add(
-            tf.keras.layers.Conv2D(128, 3, kernel_initializer='he_normal', strides=1, activation='relu', padding='same',
-                                   name="conv3"))
-        model.add(
-            tf.keras.layers.Conv2D(128, 3, kernel_initializer='he_normal', strides=1, activation='relu', padding='same',
-                                   name="conv4"))
-        # 使用tf.keras.layers.MaxPool2D搭建神经网络的池化层，使用最大值池化策略，将2*2局域的像素使用一个最大值代替，步幅为2，padding使用valid策略
-        model.add(tf.keras.layers.MaxPool2D((2, 2), strides=2, padding='valid', name="pool2"))
-        # 叠加一层Dropout层，提高泛化性，降低神经网络的复杂度
-        model.add(Dropout(rate=self.rate, name="d2"))
-        # 使用batchnormalization对上一层的输出数据进行归一化
-        model.add(tf.keras.layers.BatchNormalization())
-        # 使用双层卷积结构的方式提取图像特征，第三层双层卷积使用使用3*3的卷积核，输出维度是128，全局使用he_normal进行kernel_initializer,激活函数使用relu
-        model.add(
-            tf.keras.layers.Conv2D(256, 3, kernel_initializer='he_normal', strides=1, activation='relu', padding='same',
-                                   name="conv5"))
-        model.add(
-            tf.keras.layers.Conv2D(256, 3, kernel_initializer='he_normal', strides=1, activation='relu', padding='same',
-                                   name="conv6"))
-        # 使用tf.keras.layers.MaxPool2D搭建神经网络的池化层，使用最大值池化策略，将2*2局域的像素使用一个最大值代替，步幅为2，padding使用valid策略
-        model.add(tf.keras.layers.MaxPool2D((2, 2), strides=2, padding='valid', name="pool3"))
-        # 叠加一层Dropout层，提高泛化性，降低神经网络的复杂度
-        model.add(Dropout(rate=self.rate, name="d3"))
-        # 使用batchnormalization对上一层的输出数据进行归一化
-        model.add(BatchNormalization())
-        # 使用flatten将上层的输出数据压平
-        model.add(Flatten(name="flatten"))
-        # 叠加一层Dropout层，提高泛化性，降低神经网络的复杂度
-        model.add(Dropout(self.rate))
-        # 叠加一层全连接层，用于拟合最终结果，激活函数使用relu
-        model.add(Dense(128, activation='relu', kernel_initializer='he_normal'))
-        # 叠加一层Dropout层，提高泛化性，降低神经网络的复杂度
-        model.add(Dropout(self.rate))
-        # 叠加一层全连接层作为l1层，激活函数使用relu
         model.add(Dense(2, activation='relu', kernel_initializer='he_normal', name='l1'))
         # 叠加一层全连接层作为l2层，激活函数使用relu
         model.add(Dense(2, activation='relu', kernel_initializer='he_normal', name='l2'))
@@ -130,7 +90,7 @@ class PNN(tf.keras.Model):
 
         return model
 
-    def train(self):
+    def train(self, data, labels):
         pass
 
     def predict(self):
@@ -141,3 +101,24 @@ class PNN(tf.keras.Model):
 
     def restore(self):
         pass
+
+
+if __name__ == '__main__':
+    pnn = PNN(features_dim=9, fields_dim=3, hidden_layer_sizes=[64, 32, 8], dropout_params=[0.5]*3)
+    path = '../../data/titanic.csv'
+    import pandas as pd
+    import numpy as np
+    data = pd.read_csv(path)
+    data.fillna(0)
+    data, labels = data[data.columns.difference(['Survived'])], data['Survived']
+    print(data[data.columns.difference(['Age', 'Fare'])])
+    # print(pd.Categorical(data[data.columns.difference(['Age', 'Fare'])]).codes.astype(int))
+    data[data.columns.difference(['Age', 'Fare'])] = pd.Categorical(data[data.columns.difference(['Age', 'Fare'])]).codes.astype(int)
+    for i in np.where(np.isnan(data))[0]:
+        data['Age'][i] = 0
+    # print(data[data.columns.difference(['Age', 'Fare'])])
+    one_hot_encoder = OneHotEncoder().fit(data[data.columns.difference(['Age', 'Fare'])])
+    # print(one_hot_encoder.transform(data[data.columns.difference(['Age', 'Fare'])]).toarray())
+
+    # print(one_hot_encoder.transform(data).toarray())
+    # pnn.train(data, labels)
