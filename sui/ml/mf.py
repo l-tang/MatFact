@@ -84,7 +84,7 @@ class FunkSVD:
             learning_rate *= learning_rate_decay
             for row in range(len(self.matrix)):
                 for col in range(len(self.matrix[row])):
-                    if not self.matrix[row, col] or np.isnan(self.matrix[row, col]):
+                    if self.matrix[row, col] is None or np.isnan(self.matrix[row, col]):
                         continue
                     if random.random() <= 1 - dropout:
                         y_hat = np.matmul(self.matrix_p[row, :], self.matrix_q.T[col, :])
@@ -143,7 +143,7 @@ class FunkSVD:
             topk_reco = []
             score_list = []
             for col in range(len(self.matrix[row])):
-                if not self.matrix[row, col] or np.isnan(self.matrix[row, col]):
+                if self.matrix[row, col] is None or np.isnan(self.matrix[row, col]):
                     score = np.matmul(self.matrix_p[row, :], self.matrix_q.T[col, :])
                     if len(topk_reco) < topk:
                         topk_reco.append(col)

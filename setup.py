@@ -1,6 +1,6 @@
 from setuptools import setup
 setup(name='sui',
-      version='0.13',
+      version='0.1300001',
       description='some useful implementations',
       url='http://github.com/l-tang/SUI',
       author='Li Tang',
