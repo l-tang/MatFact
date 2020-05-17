@@ -38,8 +38,8 @@ class FunkSVD:
         self.name = name
         self.version = version
 
-    def train(self, penalty='ridge', penalty_weight=0.5, learning_rate=0.05, learning_rate_decay=0.95,
-              min_learning_rate=None, dropout=0.0, epochs=50, early_stopping=10, matrix_p=None, matrix_q=None):
+    def train(self, penalty='ridge', penalty_weight=0.5, learning_rate=0.75, learning_rate_decay=0.95,
+              min_learning_rate=None, dropout=0.0, epochs=50, early_stopping=10, matrix_p=None, matrix_q=None, workers=1):
         """
 
         :param penalty:
@@ -52,6 +52,7 @@ class FunkSVD:
         :param early_stopping:
         :param matrix_p:
         :param matrix_q:
+        :param workers:
         :return:
         """
         assert penalty in ['ridge', 'lasso'], "'penalty' should be either 'ridge' or 'lasso'."
@@ -59,8 +60,9 @@ class FunkSVD:
         assert learning_rate > 0, "'learning_rate' should be greater than 0."
         assert learning_rate_decay > 0, "'learning_rate_decay' should be greater than 0. Set 1 for no decay in training."
         assert 0 <= dropout < 1.0, "The domain of definition of 'dropout' should be [0, 1)."
-        assert isinstance(early_stopping,
-                          int), "'early_stopping' should be an integer. Set 0 or any negative integer to interdict early stopping."
+        assert isinstance(early_stopping, int), \
+            "'early_stopping' should be an integer. Set 0 or any negative integer to interdict early stopping."
+        assert isinstance(workers, int) and workers > 0, "'workers' should be an integer greater than 0."
 
         if matrix_p is not None:
             assert len(matrix_p) == len(self.matrix) and len(
@@ -72,58 +74,33 @@ class FunkSVD:
                 self.matrix[0]), "The size of '_matrix_p' should be len(matrix) * k."
             self.matrix_q = matrix_q
 
-        learning_rate /= learning_rate_decay * (1 - dropout)
+        learning_rate /= 1 - dropout
 
         loss_history = [sys.maxsize]
         for epoch in range(epochs):
             loss = 0
             trained_samples = 0
             skipped_samples = 0
-            learning_rate *= learning_rate_decay
 
             if min_learning_rate:
                 if learning_rate < min_learning_rate:
                     learning_rate = min_learning_rate
 
-            for row in range(len(self.matrix)):
-                for col in range(len(self.matrix[row])):
-                    if self.matrix[row, col] is None or np.isnan(self.matrix[row, col]):
-                        continue
-                    if random.random() <= 1 - dropout:
-                        y_hat = np.matmul(self.matrix_p[row, :], self.matrix_q.T[col, :])
+            # split matrix into multiple sections for concurrency
 
-                        if penalty == 'ridge':
-                            self.matrix_p[row, :] += learning_rate * ((self.matrix[row, col] - y_hat) *
-                                                                      self.matrix_q[:, col] - penalty_weight *
-                                                                      self.matrix_p[row, :]) / self.k
-
-                            self.matrix_q[:, col] += learning_rate * ((self.matrix[row, col] - y_hat) *
-                                                                      self.matrix_p[row, :] - penalty_weight *
-                                                                      self.matrix_q[:, col]) / self.k
-
-                            loss += ((self.matrix[row, col] - y_hat) ** 2 + penalty_weight * (
-                                    np.linalg.norm(self.matrix_p[row, :]) + np.linalg.norm(
-                                self.matrix_q.T[col, :]))) / self.k
-                        elif penalty == 'lasso':
-                            self.matrix_p[row, :] += learning_rate * ((self.matrix[row, col] - y_hat) *
-                                                                      self.matrix_q[:, col] - penalty_weight) / self.k
-                            self.matrix_q[:, col] += learning_rate * ((self.matrix[row, col] - y_hat) *
-                                                                      self.matrix_p[row, :] - penalty_weight) / self.k
-                            loss += ((self.matrix[row, col] - y_hat) ** 2 + penalty_weight * (
-                                    np.linalg.norm(self.matrix_p[row, :], ord=1) + np.linalg.norm(
-                                self.matrix_q.T[col, :], ord=1))) / self.k
-                        else:
-                            raise ValueError
-                        trained_samples += 1
-                    else:
-                        skipped_samples += 1
+            # start to train
+            loss, trained_samples, skipped_samples = self.__fit((0, len(self.matrix)), (0, len(self.matrix[0])), learning_rate, penalty, penalty_weight, dropout)
 
             print('epoch: {} ==> loss: {}'.format(epoch + 1, loss))
+
             if dropout > 0:
                 print('Trained {} samples and skipped {} samples.'
                       ' The dropout rate is: {}%'.format(trained_samples, skipped_samples, round(
                     skipped_samples / (trained_samples + skipped_samples) * 100)))
-            print('Current learning rate: {}'.format(learning_rate))
+
+            if learning_rate_decay != 1.0:
+                print('Current learning rate: {}'.format(learning_rate))
+                learning_rate *= learning_rate_decay
 
             if early_stopping > 0:
                 if loss < loss_history[0]:
@@ -138,6 +115,46 @@ class FunkSVD:
                     break
             else:
                 continue
+
+    def __fit(self, row_purview: tuple, col_purview: tuple, learning_rate, penalty, penalty_weight, dropout):
+        loss = 0
+        trained_samples = 0
+        skipped_samples = 0
+
+        for row in range(row_purview[0], row_purview[1]):
+            for col in range(col_purview[0], col_purview[1]):
+                if self.matrix[row, col] is None or np.isnan(self.matrix[row, col]):
+                    continue
+                if random.random() <= 1 - dropout:
+                    y_hat = np.matmul(self.matrix_p[row, :], self.matrix_q.T[col, :])
+
+                    if penalty == 'ridge':
+                        self.matrix_p[row, :] += learning_rate * ((self.matrix[row, col] - y_hat) *
+                                                                  self.matrix_q[:, col] - penalty_weight *
+                                                                  self.matrix_p[row, :]) / self.k
+
+                        self.matrix_q[:, col] += learning_rate * ((self.matrix[row, col] - y_hat) *
+                                                                  self.matrix_p[row, :] - penalty_weight *
+                                                                  self.matrix_q[:, col]) / self.k
+
+                        loss += ((self.matrix[row, col] - y_hat) ** 2 + penalty_weight * (
+                                np.linalg.norm(self.matrix_p[row, :]) + np.linalg.norm(
+                            self.matrix_q.T[col, :]))) / self.k
+                    elif penalty == 'lasso':
+                        self.matrix_p[row, :] += learning_rate * ((self.matrix[row, col] - y_hat) *
+                                                                  self.matrix_q[:, col] - penalty_weight) / self.k
+                        self.matrix_q[:, col] += learning_rate * ((self.matrix[row, col] - y_hat) *
+                                                                  self.matrix_p[row, :] - penalty_weight) / self.k
+                        loss += ((self.matrix[row, col] - y_hat) ** 2 + penalty_weight * (
+                                np.linalg.norm(self.matrix_p[row, :], ord=1) + np.linalg.norm(
+                            self.matrix_q.T[col, :], ord=1))) / self.k
+                    else:
+                        raise ValueError
+                    trained_samples += 1
+                else:
+                    skipped_samples += 1
+
+        return loss, trained_samples, skipped_samples
 
     def predict(self, topk=20, result_path=None):
         """
@@ -164,7 +181,7 @@ class FunkSVD:
             result_dict[row] = topk_reco
 
         if result_path is not None:
-            result_file = result_path + self.name + '_' + self.version + '_result.json'
+            result_file = '{}{}_{}_{}_result.json'.format(result_path, self.name, str(self.k), self.version)
             try:
                 with open(result_file, 'w') as result_output:
                     json.dump([result_dict], result_output)
@@ -176,7 +193,7 @@ class FunkSVD:
         return result_dict
 
     def dump(self, model_file_path):
-        model_file = model_file_path + self.name + '_' + self.version + '.pkl'
+        model_file = '{}{}_{}_{}.pkl'.format(model_file_path, self.name, str(self.k), self.version)
         try:
             with open(model_file, 'wb') as model_output:
                 model_info = dict()
@@ -208,3 +225,8 @@ class FunkSVD:
         except Exception as e:
             print('Failed to restore model.')
             print(e)
+
+    def add(self, target, value, initializer='mean'):
+        assert target in ['k', 'matrix_p', 'matrix_q'], "'target' cannot be found."
+        assert isinstance(value, int) and value > 0, "'value' should be an integer greater than 0."
+        assert initializer in ['mean', 'random'], "'initializer' should be either 'mean' or 'random'."

@@ -1,6 +1,7 @@
 README.md
 setup.py
 sui/__init__.py
+sui/dataset.py
 sui.egg-info/PKG-INFO
 sui.egg-info/SOURCES.txt
 sui.egg-info/dependency_links.txt

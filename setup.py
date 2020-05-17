@@ -1,7 +1,7 @@
 from setuptools import setup
 setup(name='sui',
-      version='0.130001',
-      description='some useful implementations',
+      version='0.1.2',
+      description='Some Useful Implementations',
       url='http://github.com/l-tang/SUI',
       author='Li Tang',
       author_email='litang1025@gmail.com',
