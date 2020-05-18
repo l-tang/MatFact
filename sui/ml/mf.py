@@ -1,16 +1,11 @@
 """
-    Module including the implementation of matrix factorization for recommender system
+    Module including some implementations of matrix factorization
     Date: 28/Mar/2019
     Author: Li Tang
 """
-__author__ = ['Li Tang']
-__copyright__ = 'Li Tang'
-__credits__ = ['Li Tang']
-__license__ = 'GPL'
-__version__ = '1.0.1'
-__maintainer__ = ['Li Tang']
-__email__ = 'litang1025@gmail.com'
-__status__ = 'Production'
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import sys
 import numpy as np
@@ -18,6 +13,15 @@ import random
 import time
 import pickle
 import json
+
+__author__ = ['Li Tang']
+__copyright__ = 'Li Tang'
+__credits__ = ['Li Tang']
+__license__ = 'MIT'
+__version__ = '0.1.6'
+__maintainer__ = ['Li Tang']
+__email__ = 'litang1025@gmail.com'
+__status__ = 'Production'
 
 
 class FunkSVD:
@@ -39,7 +43,8 @@ class FunkSVD:
         self.version = version
 
     def train(self, penalty='ridge', penalty_weight=0.5, learning_rate=0.75, learning_rate_decay=0.95,
-              min_learning_rate=None, dropout=0.0, epochs=50, early_stopping=10, matrix_p=None, matrix_q=None, workers=1):
+              min_learning_rate=None, dropout=0.0, epochs=50, early_stopping=10, matrix_p=None, matrix_q=None,
+              workers=1):
         """
 
         :param penalty:
@@ -89,7 +94,8 @@ class FunkSVD:
             # split matrix into multiple sections for concurrency
 
             # start to train
-            loss, trained_samples, skipped_samples = self.__fit((0, len(self.matrix)), (0, len(self.matrix[0])), learning_rate, penalty, penalty_weight, dropout)
+            loss, trained_samples, skipped_samples = self.__fit((0, len(self.matrix)), (0, len(self.matrix[0])),
+                                                                learning_rate, penalty, penalty_weight, dropout)
 
             print('epoch: {} ==> loss: {}'.format(epoch + 1, loss))
 

@@ -1,10 +1,10 @@
 Metadata-Version: 1.0
 Name: sui
-Version: 0.1.2
+Version: 0.1.600000008
 Summary: Some Useful Implementations
-Home-page: http://github.com/l-tang/SUI
+Home-page: http://github.com/l-tang/sui
 Author: Li Tang
 Author-email: litang1025@gmail.com
 License: MIT
-Description: UNKNOWN
+Description: SUI(Some Useful Implementations) is a peckage including selected implementations apropos machine learning, deep learning, and reinforcement learning algorithms.
 Platform: UNKNOWN
