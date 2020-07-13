@@ -108,9 +108,14 @@ class SVDModel:
 
         return result_dict
 
-    def dump(self, model_file_path):
-        model_file = '{}_{}.pkl'.format(self.name, self.version)
-        model_file_path += model_file
+    def dump(self, model_file_path=None):
+        """
+        
+        :param model_file_path: Absolute path to dump this model via using pickle.
+        :return: 
+        """
+        if model_file_path is None:
+            model_file_path = './{}_{}.pkl'.format(self.name, self.version)
         try:
             with open(model_file_path, 'wb') as model_output:
                 model_info = dict()
