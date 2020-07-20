@@ -11,7 +11,7 @@ import pickle
 import random
 import sys
 import time
-
+from sui.ds.preprocessing import top_k
 import numpy as np
 
 __author__ = ['Li Tang']
@@ -63,49 +63,35 @@ class SVDModel:
         print(self._matrix)
         return self._matrix * (self._matrix_max - self._matrix_min) + self._matrix_min
 
-    def predict(self, topk=1, target='p', result_path=None):
+    def train(self):
+        raise NotImplementedError
+
+    def predict(self, topk=1, target='p', result_path=None, mask=True):
         """
 
         :param topk:
         :param target:
         :param result_path:
+        :param mask:
         :return:
         """
         result_dict = {}
         if target == 'p':
             for row in range(len(self._matrix)):
                 topk_reco = []
-                score_list = []
                 for col in range(len(self._matrix[row])):
-                    if self._matrix[row, col] is None or np.isnan(self._matrix[row, col]):
+                    if self._matrix[row, col] is None or np.isnan(self._matrix[row, col]) or mask is False:
                         score = np.matmul(self.matrix_p[row, :], self.matrix_q.T[col, :])
-                        if len(topk_reco) < topk:
-                            topk_reco.append(col)
-                            score_list.append(score)
-                        elif min(score_list) < score:
-                            idx = score_list.index(min(score_list))
-                            topk_reco[idx] = col
-                            score_list[idx] = score
-                        else:
-                            continue
-                result_dict[row] = topk_reco
+                        topk_reco.append([col, score])
+                result_dict[row] = top_k(data=topk_reco, k=topk, axis=1, desc=True)
         elif target == 'q':
             for col in range(len(self._matrix[0])):
                 topk_reco = []
-                score_list = []
                 for row in range(len(self._matrix)):
                     if self._matrix[row, col] is None or np.isnan(self._matrix[row, col]):
                         score = np.matmul(self.matrix_p[row, :], self.matrix_q.T[col, :])
-                        if len(topk_reco) < topk:
-                            topk_reco.append(row)
-                            score_list.append(score)
-                        elif min(score_list) < score:
-                            idx = score_list.index(min(score_list))
-                            topk_reco[idx] = row
-                            score_list[idx] = score
-                        else:
-                            continue
-                result_dict[col] = topk_reco
+                        topk_reco.append([row, score])
+                result_dict[col] = top_k(data=topk_reco, k=topk, axis=1, desc=True)
         else:
             raise SuiMlMfError("'target' should be 'p' or 'q'. Obtained:", target)
 
@@ -144,6 +130,10 @@ class SVDModel:
         except Exception as e:
             raise SuiMlMfError('Failed to dump model:', e)
 
+    @staticmethod
+    def restore(model_file_path):
+        raise NotImplementedError
+
 
 class FunkSVD(SVDModel):
     def __init__(self, matrix, k=1, matrix_p=None, matrix_q=None, name='FunkSVD',
@@ -160,7 +150,6 @@ class FunkSVD(SVDModel):
         assert matrix is not None, "'matrix' cannot be None."
         assert k > 0 and isinstance(k, int), "'k' should be an integer greater than 0."
 
-        matrix = np.array(matrix, dtype=np.float64)
         super().__init__(matrix=matrix, k=k, matrix_p=matrix_p, matrix_q=matrix_q, name=name, version=version)
 
     def train(self, penalty='ridge', penalty_weight=0.5, learning_rate=0.75, learning_rate_decay=1.0,
@@ -316,3 +305,77 @@ class FunkSVD(SVDModel):
         assert target in ['k', 'matrix_p', 'matrix_q'], "'target' cannot be found."
         assert isinstance(value, int) and value > 0, "'value' should be an integer greater than 0."
         assert initializer in ['mean', 'random'], "'initializer' should be either 'mean' or 'random'."
+
+
+class BiasSVD(SVDModel):
+    def __init__(self, matrix, k=1, matrix_p=None, matrix_q=None, name='BiasSVD',
+                 version=time.strftime("%Y%m%d", time.localtime())):
+        """
+
+        :param matrix:
+        :param k:
+        :param matrix_p:
+        :param matrix_q:
+        :param name:
+        :param version:
+        """
+        assert matrix is not None, "'matrix' cannot be None."
+        assert k > 0 and isinstance(k, int), "'k' should be an integer greater than 0."
+
+        super().__init__(matrix=matrix, k=k, matrix_p=matrix_p, matrix_q=matrix_q, name=name, version=version)
+
+    # TODO
+    def train(self):
+        pass
+
+    # TODO
+    def __fit(self):
+        pass
+
+    # TODO
+    @staticmethod
+    def restore(model_file_path):
+        pass
+
+
+class SVDpp(SVDModel):
+    def __init__(self, matrix, k=1, matrix_p=None, matrix_q=None, name='SVDpp',
+                 version=time.strftime("%Y%m%d", time.localtime())):
+        """
+
+        :param matrix:
+        :param k:
+        :param matrix_p:
+        :param matrix_q:
+        :param name:
+        :param version:
+        """
+        assert matrix is not None, "'matrix' cannot be None."
+        assert k > 0 and isinstance(k, int), "'k' should be an integer greater than 0."
+
+        super().__init__(matrix=matrix, k=k, matrix_p=matrix_p, matrix_q=matrix_q, name=name, version=version)
+
+    # TODO
+    def train(self):
+        pass
+
+    # TODO
+    def __fit(self):
+        pass
+
+    # TODO
+    @staticmethod
+    def restore(model_file_path):
+        pass
+
+
+# TODO
+class BPR:
+    def __init__(self):
+        pass
+
+
+# TODO
+class ALS:
+    def __init__(self):
+        pass
