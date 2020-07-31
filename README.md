@@ -17,3 +17,7 @@ print(sui.my_dear)
 ```
 
 ## 2. Get Started
+```python
+# Get information of all APIs
+sui.api_info(api=None)
+```
