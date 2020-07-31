@@ -3,9 +3,7 @@
     Date: 25/May/2020
     Author: Li Tang
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 __author__ = ['Li Tang']
 __copyright__ = 'Li Tang'
@@ -17,7 +15,7 @@ __email__ = 'litang1025@gmail.com'
 __status__ = 'Production'
 
 
-class SuiDsPreprocessingError(Exception):
+class SuiToolboxPreprocessingError(Exception):
     pass
 
 
@@ -36,7 +34,7 @@ def month_to_int(month: str, unknown=None) -> int:
 
     else:
         if unknown is None:
-            raise SuiDsPreprocessingError("This input month '{}' cannot be parsed.".format(month))
+            raise SuiToolboxPreprocessingError("This input month '{}' cannot be parsed.".format(month))
         else:
             return unknown
 
@@ -54,29 +52,6 @@ def weekday_to_int(weekday: str, unknown=None) -> int:
 
     else:
         if unknown is None:
-            raise SuiDsPreprocessingError("This input weekday '{}' cannot be parsed.".format(weekday))
+            raise SuiToolboxPreprocessingError("This input weekday '{}' cannot be parsed.".format(weekday))
         else:
             return unknown
-
-
-def top_k(data, k, axis=1, target=0, target_only=False, desc=True):
-    def __push(item, data, axis, desc):
-        for idx in range(len(data) - 1, -1, -1):
-            if desc is True and data[idx][axis] >= item[axis] or desc is False and data[idx][axis] <= item[axis]:
-                result = data[:idx + 1]
-                result.append(item)
-                result.extend(data[idx + 1:])
-                return result
-        data.insert(0, item)
-        return data
-
-    result = []
-
-    for item in data:
-        if len(result) < k or desc is True and item[axis] > result[-1][axis] or desc is False and item[axis] < \
-                result[-1][axis]:
-            result = __push(item, result, axis=axis, desc=desc)
-        if len(result) > k:
-            result = result[:k]
-
-    return [i[target] for i in result] if target_only else result

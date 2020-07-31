@@ -1,4 +1,4 @@
 # TODO
-class DQN:
+class ALS:
     def __init__(self):
         pass
