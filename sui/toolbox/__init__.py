@@ -1,5 +1,5 @@
-"""sui.rl
-Reinforcement learning algorithm implementations
+"""sui.toolbox
+Tool kits for data science
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
-from .dqn import DQN
+from .top_k import top_k

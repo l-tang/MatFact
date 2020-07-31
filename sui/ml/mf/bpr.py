@@ -1,4 +1,4 @@
 # TODO
-class DQN:
+class BPR:
     def __init__(self):
         pass
