@@ -28,9 +28,9 @@ __api_info_dict = {
 def api_info(api=None):
     if api is not None:
         if api in __api_info_dict:
-            return 'API: {}\nInfo: {}\n'.format(api, __api_info_dict[api])
+            print('API: {}\nInfo: {}\n'.format(api, __api_info_dict[api]))
         else:
-            return '{} is not a correct API.'.format(api)
+            print('{} is not a correct API.'.format(api))
     else:
         for api, info in __api_info_dict.items():
-            return 'API: {}\nInfo: {}\n'.format(api, info)
+            print('API: {}\nInfo: {}\n'.format(api, info))

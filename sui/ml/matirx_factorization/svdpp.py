@@ -21,7 +21,7 @@ __email__ = 'litang1025@gmail.com'
 __status__ = 'Production'
 
 
-class SuiMlMfError(Exception):
+class SuiSVDppError(Exception):
     pass
 
 

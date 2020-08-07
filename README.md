@@ -17,3 +17,11 @@ print(sui.my_dear)
 ```
 
 ## 2. Get Started
+To get information of any API in SUI, you can call the function 'sui.api_info' with no specified 'api' to demonstrate every API and its information, or you can specify an API as 'sui.api_info(api='sui.FunkSVD')'.
+```python
+# get information of all APIs
+sui.api_info()
+
+# get information of 'sui.PNN'
+sui.api_info('sui.PNN')
+```
