@@ -1,4 +1,4 @@
-"""sui.ml.matirx_factorization
+"""sui.ml.matrix_factorization
 Machine learning algorithm implementations
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
@@ -7,3 +7,5 @@ from .biassvd import BiasSVD
 from .svdpp import SVDpp
 from .bpr import BPR
 from .als import ALS
+
+__all__ = ['FunkSVD', 'BiasSVD', 'SVDpp', 'BPR', 'ALS']

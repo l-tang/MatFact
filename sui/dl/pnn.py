@@ -52,7 +52,7 @@ class PNN(tf.keras.Model):
         self.__init_hidden_layers()
 
         # output layer
-        self.output_layer = tf.keras.layers.Dense(1, activation=None, use_bias=True)
+        self.output_layer = tf.keras.layers.Dense(1, activation='sigmoid', use_bias=True)
 
     def __init_quadratic_signals(self, initializer=tf.initializers.GlorotUniform()):
         if self.product_type == 'ipnn':
@@ -66,7 +66,7 @@ class PNN(tf.keras.Model):
 
     def __init_hidden_layers(self):
         for layer_index in range(len(self.hidden_layer_sizes)):
-            setattr(self, 'dense_' + str(layer_index), Dense(self.hidden_layer_sizes[layer_index]))
+            setattr(self, 'dense_' + str(layer_index), Dense(self.hidden_layer_sizes[layer_index], activation='relu'))
             setattr(self, 'batch_norm_' + str(layer_index), BatchNormalization())
             setattr(self, 'activation_' + str(layer_index), Activation('relu'))
             setattr(self, 'dropout_' + str(layer_index), Dropout(self.dropout_params[layer_index]))
