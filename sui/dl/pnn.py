@@ -66,7 +66,7 @@ class PNN(tf.keras.Model):
 
     def __init_hidden_layers(self):
         for layer_index in range(len(self.hidden_layer_sizes)):
-            setattr(self, 'dense_' + str(layer_index), Dense(self.hidden_layer_sizes[layer_index], activation='relu'))
+            setattr(self, 'dense_' + str(layer_index), Dense(self.hidden_layer_sizes[layer_index]))
             setattr(self, 'batch_norm_' + str(layer_index), BatchNormalization())
             setattr(self, 'activation_' + str(layer_index), Activation('relu'))
             setattr(self, 'dropout_' + str(layer_index), Dropout(self.dropout_params[layer_index]))
