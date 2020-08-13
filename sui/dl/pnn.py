@@ -72,13 +72,13 @@ class PNN(tf.keras.Model):
             setattr(self, 'dropout_' + str(layer_index), Dropout(self.dropout_params[layer_index]))
 
     def call(self, feature_index, feature_value, use_dropout=True):
+        embedding = tf.einsum('bnm,bn->bnm', self.embedding_layer(feature_index), feature_value)
         # linear part
-        l_z = tf.einsum('bnm,dnm->bd', self.embedding_layer(feature_index), self.linear_sigals_variable)  # Batch * D1
+        l_z = tf.einsum('bnm,dnm->bd', embedding, self.linear_sigals_variable)  # Batch * D1
 
         # quadratic part
         if self.product_type == 'ipnn':
-            theta = tf.einsum('bnm,dn->bdnm', self.embedding_layer(feature_index),
-                              self.quadratic_signals_variable)  # Batch * D1 * N * M
+            theta = tf.einsum('bnm,dn->bdnm', embedding, self.quadratic_signals_variable)  # Batch * D1 * N * M
             l_p = tf.einsum('bdnm,bdnm->bd', theta, theta)
         else:
             # TODO
