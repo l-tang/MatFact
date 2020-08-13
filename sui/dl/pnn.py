@@ -52,7 +52,7 @@ class PNN(tf.keras.Model):
         self.__init_hidden_layers()
 
         # output layer
-        self.output_layer = tf.keras.layers.Dense(1, activation=None, use_bias=True)
+        self.output_layer = tf.keras.layers.Dense(1, activation='sigmoid', use_bias=True)
 
     def __init_quadratic_signals(self, initializer=tf.initializers.GlorotUniform()):
         if self.product_type == 'ipnn':

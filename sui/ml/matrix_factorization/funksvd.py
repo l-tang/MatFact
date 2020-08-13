@@ -21,7 +21,7 @@ __email__ = 'litang1025@gmail.com'
 __status__ = 'Production'
 
 
-class SuiMlMfError(Exception):
+class SuiFunkSVDError(Exception):
     pass
 
 
@@ -181,7 +181,7 @@ class FunkSVD(SVDModel):
             return model
 
         except Exception as e:
-            raise SuiMlMfError('Failed to restore model:', e)
+            raise SuiFunkSVDError('Failed to restore model:', e)
 
     # TODO: add new user or product into a pretrained matrix
     def add(self, target, value, initializer='mean'):
