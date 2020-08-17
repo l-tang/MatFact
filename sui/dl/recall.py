@@ -13,7 +13,7 @@ __status__ = 'Production'
 
 import tensorflow as tf
 from tensorflow.keras.layers import GRU
-from sui.ml.mf.funksvd import FunkSVD
+from ..ml import FunkSVD
 
 
 class RNN4Rec:

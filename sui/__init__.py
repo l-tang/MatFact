@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 from .ml import FunkSVD, BiasSVD, SVDpp, BPR, ALS
-from .dl import PNN, GRU4Rec
+from .dl.rank import PNN
+from .dl.recall import GRU4Rec
 
 __author__ = ['Li Tang']
 __copyright__ = 'Li Tang'
