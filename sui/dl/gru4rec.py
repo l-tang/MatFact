@@ -13,7 +13,6 @@ __status__ = 'Production'
 
 import tensorflow as tf
 from tensorflow.keras.layers import GRU
-from ..ml import FunkSVD
 
 
 class RNN4Rec:
@@ -42,10 +41,3 @@ class GRU4Rec(GRU):
 class BERT4Rec(RNN4Rec):
     def __init__(self):
         super().__init__()
-
-matrix = tf.random.normal([32, 10, 8])
-funksvd = FunkSVD(matrix, 4)
-gru = GRU4Rec(units=4)
-print(funksvd.matrix_q)
-output = gru(funksvd.matrix_q)
-print(output)

@@ -2,7 +2,8 @@
 Deep learning algorithm implementations
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
-from .rank import PNN
-from .recall import GRU4Rec
+from .afm import AFM
+from .gru4rec import GRU4Rec
+from .pnn import PNN
 
-__all__ = ['PNN', 'GRU4Rec']
+__all__ = ['AFM', 'GRU4Rec', 'PNN']

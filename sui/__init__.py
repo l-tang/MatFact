@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 from .ml import FunkSVD, BiasSVD, SVDpp, BPR, ALS
-from .dl.rank import PNN
-from .dl.recall import GRU4Rec
+from .dl import PNN
 
 __author__ = ['Li Tang']
 __copyright__ = 'Li Tang'
@@ -15,13 +14,13 @@ __status__ = 'Production'
 my_dear = "Dear Miss Sui Lin, I love you!"
 
 __api_info_dict = {
-    "sui.FunkSVD": "FunkSVD",
-    "sui.BiasSVD": "BiasSVD",
-    "sui.SVDpp": "SVD++",
-    "sui.BPR": "Bayesian Personalized Ranking",
     "sui.ALS": "Alternating Least Squares",
+    "sui.BiasSVD": "BiasSVD",
+    "sui.BPR": "Bayesian Personalized Ranking",
+    "sui.FunkSVD": "FunkSVD",
     "sui.GRU4Rec": "GRU4Rec",
     "sui.PNN": "Product-based Neural Networks",
+    "sui.SVDpp": "SVD++",
     "sui.toolbox.top_k": "Return a list containing top k data for a specific dimension"
 }
 

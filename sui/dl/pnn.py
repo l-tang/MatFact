@@ -5,6 +5,7 @@ Author: Li Tang
 """
 import tensorflow as tf
 from tensorflow.keras.layers import Activation, BatchNormalization, Dense, Dropout
+from .initializers import get_init
 
 __author__ = ['Li Tang']
 __copyright__ = 'Li Tang'
@@ -23,7 +24,7 @@ class SuiPNNError(Exception):
 class PNN(tf.keras.Model):
     def __init__(self, features_dim: int, fields_dim: int, hidden_layer_sizes: list, dropout_params: list,
                  product_layer_dim=10, lasso=0.01, ridge=1e-5, embedding_dim=10, product_type='ipnn',
-                 initializer=tf.initializers.GlorotUniform()):
+                 initializer='glorotuniform', activation='sigmoid', hidden_activation='relu'):
         super().__init__()
         self.features_dim = features_dim  # number of different, denoted by F
         self.fields_dim = fields_dim  # number of different original features
@@ -33,8 +34,12 @@ class PNN(tf.keras.Model):
         self.lasso = lasso
         self.ridge = ridge
         self.embedding_dim = embedding_dim  # dimension of vectors after embedding, denoted by M
-        self.product_type = product_type  # 'ipnn' for inner product while 'opnn' for outer product
-        self.initializer = initializer
+        # product type for product layer
+        # 'ipnn' for inner product , 'opnn' for outer product, and 'pnn' for concatenating both product
+        self.product_type = product_type
+        self.initializer = get_init(initializer)
+        self.activation = activation
+        self.hidden_activation = hidden_activation
 
         # embedding layer
         # the size of embedding layer is F * M
@@ -52,23 +57,26 @@ class PNN(tf.keras.Model):
         self.__init_hidden_layers()
 
         # output layer
-        self.output_layer = tf.keras.layers.Dense(1, activation='sigmoid', use_bias=True)
+        self.output_layer = tf.keras.layers.Dense(1, activation=self.activation, use_bias=True)
 
-    def __init_quadratic_signals(self, initializer=tf.initializers.GlorotUniform()):
+    def __init_quadratic_signals(self):
         if self.product_type == 'ipnn':
             # matrix decomposition based on the assumption: W_p^n = \theta ^n * {\theta^n}^T
-            return tf.Variable(initializer(shape=(self.product_layer_dim, self.fields_dim)))
+            return tf.Variable(self.initializer(shape=(self.product_layer_dim, self.fields_dim)))
         elif self.product_type == 'opnn':
             # TODO
             pass
+        elif self.product_type == 'pnn':
+            # matrix decomposition based on the assumption: W_p^n = \theta ^n * {\theta^n}^T
+            return tf.Variable(self.initializer(shape=(self.product_layer_dim, self.fields_dim)))
         else:
-            raise SuiPNNError("'product_type' should be either 'ipnn' or 'opnn'.")
+            raise SuiPNNError("'product_type' should be 'ipnn', 'opnn', or 'pnn'.")
 
     def __init_hidden_layers(self):
         for layer_index in range(len(self.hidden_layer_sizes)):
             setattr(self, 'dense_' + str(layer_index), Dense(self.hidden_layer_sizes[layer_index]))
             setattr(self, 'batch_norm_' + str(layer_index), BatchNormalization())
-            setattr(self, 'activation_' + str(layer_index), Activation('relu'))
+            setattr(self, 'activation_' + str(layer_index), Activation(self.hidden_activation))
             setattr(self, 'dropout_' + str(layer_index), Dropout(self.dropout_params[layer_index]))
 
     def call(self, feature_index, feature_value, use_dropout=True):
@@ -80,9 +88,13 @@ class PNN(tf.keras.Model):
         if self.product_type == 'ipnn':
             theta = tf.einsum('bnm,dn->bdnm', embedding, self.quadratic_signals_variable)  # Batch * D1 * N * M
             l_p = tf.einsum('bdnm,bdnm->bd', theta, theta)
-        else:
+        elif self.product_type == 'opnn':
             # TODO
             pass
+        elif self.product_type == 'pnn':
+            pass
+        else:
+            raise SuiPNNError("'product_type' should be 'ipnn', 'opnn', or 'pnn'.")
 
         model = tf.concat((l_z, l_p), axis=1)
         if use_dropout:
