@@ -23,14 +23,14 @@ class SuiPNNError(Exception):
 
 class PNN(tf.keras.Model):
     def __init__(self, features_dim: int, fields_dim: int, hidden_layer_sizes: list, dropout_params: list,
-                 product_layer_dim=10, lasso=0.01, ridge=1e-5, embedding_dim=10, product_type='ipnn',
+                 product_layer_dim=10, lasso=0.01, ridge=1e-5, embedding_dim=10, product_type='pnn',
                  initializer='glorotuniform', activation='sigmoid', hidden_activation='relu'):
         super().__init__()
-        self.features_dim = features_dim  # number of different, denoted by F
-        self.fields_dim = fields_dim  # number of different original features
+        self.features_dim = features_dim  # size of features after one-hot, denoted by F
+        self.fields_dim = fields_dim  # number of different original features, denoted by N
         self.dropout_params = dropout_params
         self.hidden_layer_sizes = hidden_layer_sizes  # number of hidden layers
-        self.product_layer_dim = product_layer_dim
+        self.product_layer_dim = product_layer_dim  # as same as the input size of l_1, denoted by D_1
         self.lasso = lasso
         self.ridge = ridge
         self.embedding_dim = embedding_dim  # dimension of vectors after embedding, denoted by M
@@ -51,7 +51,7 @@ class PNN(tf.keras.Model):
         self.linear_sigals_variable = tf.Variable(
             self.initializer(shape=(self.product_layer_dim, self.fields_dim, self.embedding_dim)))
         # quadratic signals l_p
-        self.quadratic_signals_variable = self.__init_quadratic_signals()
+        self.__init_quadratic_signals()
 
         # hidden layers
         self.__init_hidden_layers()
@@ -62,13 +62,16 @@ class PNN(tf.keras.Model):
     def __init_quadratic_signals(self):
         if self.product_type == 'ipnn':
             # matrix decomposition based on the assumption: W_p^n = \theta ^n * {\theta^n}^T
-            return tf.Variable(self.initializer(shape=(self.product_layer_dim, self.fields_dim)))
+            # then the size of W_p^n is D_1 * N
+            self.theta = tf.Variable(self.initializer(shape=(self.product_layer_dim, self.fields_dim)))
         elif self.product_type == 'opnn':
-            # TODO
-            pass
+            # the size of W_p^n is D_1 * M * M
+            self.quadratic_weights = tf.Variable(
+                self.initializer(shape=(self.product_layer_dim, self.embedding_dim, self.embedding_dim)))
         elif self.product_type == 'pnn':
-            # matrix decomposition based on the assumption: W_p^n = \theta ^n * {\theta^n}^T
-            return tf.Variable(self.initializer(shape=(self.product_layer_dim, self.fields_dim)))
+            self.theta = tf.Variable(self.initializer(shape=(self.product_layer_dim, self.fields_dim)))
+            self.quadratic_weights = tf.Variable(
+                self.initializer(shape=(self.product_layer_dim, self.embedding_dim, self.embedding_dim)))
         else:
             raise SuiPNNError("'product_type' should be 'ipnn', 'opnn', or 'pnn'.")
 
@@ -79,32 +82,37 @@ class PNN(tf.keras.Model):
             setattr(self, 'activation_' + str(layer_index), Activation(self.hidden_activation))
             setattr(self, 'dropout_' + str(layer_index), Dropout(self.dropout_params[layer_index]))
 
-    def call(self, feature_index, feature_value, use_dropout=True):
-        embedding = tf.einsum('bnm,bn->bnm', self.embedding_layer(feature_index), feature_value)
+    def call(self, feature_index, feature_value, training=False):
+        features = tf.einsum('bnm,bn->bnm', self.embedding_layer(feature_index), feature_value)
         # linear part
-        l_z = tf.einsum('bnm,dnm->bd', embedding, self.linear_sigals_variable)  # Batch * D1
+        l_z = tf.einsum('bnm,dnm->bd', features, self.linear_sigals_variable)  # Batch * D_1
 
         # quadratic part
         if self.product_type == 'ipnn':
-            theta = tf.einsum('bnm,dn->bdnm', embedding, self.quadratic_signals_variable)  # Batch * D1 * N * M
-            l_p = tf.einsum('bdnm,bdnm->bd', theta, theta)
+            delta = tf.einsum('dn,bnm->bdnm', self.theta, features)  # Batch * D_1 * N * M
+            l_p = tf.einsum('bdnm,bdnm->bd', delta, delta)
         elif self.product_type == 'opnn':
-            # TODO
-            pass
+            sum_features = tf.einsum('bnm->bm', features)  # Batch * M
+            p = tf.einsum('bm,bn->bmn', sum_features, sum_features)
+            l_p = tf.einsum('bmn,dmn->bd', p, self.quadratic_weights)
         elif self.product_type == 'pnn':
-            pass
+            delta = tf.einsum('dn,bnm->bdnm', self.theta, features)  # Batch * D_1 * N * M
+            sum_features = tf.einsum('bnm->bm', features)  # Batch * M
+            p = tf.einsum('bm,bn->bmn', sum_features, sum_features)
+            l_p = tf.concat(
+                (tf.einsum('bdnm,bdnm->bd', delta, delta), tf.einsum('bmn,dmn->bd', p, self.quadratic_weights)), axis=1)
         else:
             raise SuiPNNError("'product_type' should be 'ipnn', 'opnn', or 'pnn'.")
 
         model = tf.concat((l_z, l_p), axis=1)
-        if use_dropout:
+        if training:
             model = tf.keras.layers.Dropout(self.dropout_params[0])(model)
 
         for i in range(len(self.hidden_layer_sizes)):
             model = getattr(self, 'dense_' + str(i))(model)
             model = getattr(self, 'batch_norm_' + str(i))(model)
             model = getattr(self, 'activation_' + str(i))(model)
-            if use_dropout:
+            if training:
                 model = getattr(self, 'dropout_' + str(i))(model)
 
         output = self.output_layer(model)
