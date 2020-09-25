@@ -5,7 +5,10 @@ Author: Li Tang
 """
 import tensorflow as tf
 from tensorflow.keras.layers import Activation, BatchNormalization, Dense, Dropout
+import numpy as np
 from .initializers import get_init
+from .losses import get_loss
+from .optimizers import get_opti
 
 __author__ = ['Li Tang']
 __copyright__ = 'Li Tang'
@@ -82,8 +85,8 @@ class PNN(tf.keras.Model):
             setattr(self, 'activation_' + str(layer_index), Activation(self.hidden_activation))
             setattr(self, 'dropout_' + str(layer_index), Dropout(self.dropout_params[layer_index]))
 
-    def call(self, feature_index, feature_value, training=False):
-        features = tf.einsum('bnm,bn->bnm', self.embedding_layer(feature_index), feature_value)
+    def call(self, feature_value, embedding_index, training=False):
+        features = tf.einsum('bnm,bn->bnm', self.embedding_layer(embedding_index), feature_value)
         # linear part
         l_z = tf.einsum('bnm,dnm->bd', features, self.linear_sigals_variable)  # Batch * D_1
 
@@ -115,12 +118,32 @@ class PNN(tf.keras.Model):
             if training:
                 model = getattr(self, 'dropout_' + str(i))(model)
 
-        output = self.output_layer(model)
-        return output
+        return self.output_layer(model)
+
+    def train(self, feature_value, embedding_index, label, optimizer='adam', learning_rate=1e-4, loss='sigmoid',
+              epochs=50, batch=32, shuffle=10000):
+        for epoch in range(epochs):
+            train_set = tf.data.Dataset.from_tensor_slices((feature_value, embedding_index, label)).shuffle(
+                shuffle).batch(batch, drop_remainder=True)
+            for batch_set in train_set:
+                with tf.GradientTape() as tape:
+                    prediction = self.call(feature_value=batch_set[0], embedding_index=batch_set[1], training=True)
+                    self.loss_obj = get_loss(loss)
+                    self.optimizer = get_opti(optimizer)(learning_rate=learning_rate)
+                    batch_loss = self.loss_obj(batch_set[2], prediction)
+                gradients = tape.gradient(batch_loss, self.trainable_variables)
+                self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+            mean_loss = tf.keras.metrics.Mean(name='train_loss')
+            print('epoch: {} ==> loss: {}'.format(epoch + 1, mean_loss(batch_loss)))
+
+    def predict(self, feature_value, embedding_index):
+        feature_value = tf.convert_to_tensor(feature_value)
+        embedding_index = tf.convert_to_tensor(embedding_index)
+        return self.call(feature_value=feature_value, embedding_index=embedding_index, training=False)
 
     # TODO
-    def dump(self):
-        pass
+    def dump(self, path):
+        self.save(filepath=path)
 
     # TODO
     @staticmethod
