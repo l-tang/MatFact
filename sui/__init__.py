@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 from .ml import FunkSVD, BiasSVD, SVDpp, BPR, ALS
-from .dl import PNN
+from .dl import AFM, PNN
 
 __author__ = ['Li Tang']
 __copyright__ = 'Li Tang'

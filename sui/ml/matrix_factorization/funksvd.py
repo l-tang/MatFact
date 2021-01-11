@@ -45,10 +45,10 @@ class FunkSVD(SVDModel):
     def train(self, penalty='ridge', penalty_weight=0.5, learning_rate=0.75, learning_rate_decay=1.0,
               min_learning_rate=None, dropout=0.0, epochs=50, early_stopping=10, workers=1):
         """
-        :param penalty:
-        :param penalty_weight:
-        :param learning_rate:
-        :param learning_rate_decay:
+        :param penalty: penalty can be either lasso or ridge; hybrid of them is not allowed
+        :param penalty_weight: weight of the given type of penalty
+        :param learning_rate: initial learning rate
+        :param learning_rate_decay: decay
         :param min_learning_rate:
         :param dropout:
         :param epochs:
